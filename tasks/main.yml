@@ -1,0 +1,56 @@
+---
+- name: Create kafka group
+  group: name=kafka system=yes
+  sudo: yes
+
+- name: Create kafka user
+  user: name=kafka home={{kafka_install_dir}} createhome=yes system=yes group=kafka
+  sudo: yes
+
+- name: download kafka
+  get_url: url={{kafka_apache_base}}/{{kafka_version}}/{{kafka_base}}.tar.gz dest=/tmp/{{kafka_base}}.tar.gz
+
+- name: Unpack Kafka
+  command: tar xzf /tmp/{{kafka_base}}.tar.gz -C {{kafka_install_dir}} --strip-components 1 creates={{kafka_install_dir}}/config
+  sudo: yes
+  register: unpacked
+
+- name: Create logs folder
+  file: path={{kafka_install_dir}}/logs state=directory
+  when: unpacked.changed
+
+- name: Fix install directory permissions
+  file: path={{kafka_install_dir}} state=directory owner=kafka group=kafka recurse=yes
+  sudo: yes
+  when: unpacked.changed
+
+- name: Set server.properties
+  template: dest={{kafka_install_dir}}/config/server.properties src=server.properties.j2 owner=kafka group=kafka
+  register: server_props
+
+- name: Set log4j.properites
+  template: dest={{kafka_install_dir}}/config/log4j.properties src=log4j.properties.j2 owner=kafka group=kafka
+  register: logging_props
+
+- name: Install supervisord config
+  template: dest=/etc/supervisor/conf.d/kafka.conf src=supervisord.conf.j2 owner=root group=root mode=0644
+  notify: restart supervisor
+  when: unpacked.changed
+
+- name: Restarting kafka
+  command: echo "restarting kafka"
+  when: logging_props.changed or server_props.changed
+  notify: restart kafka
+
+- name: Start kafka
+  supervisorctl: name=kafka state=started
+  sudo: yes
+
+- name: List topics
+  command: sh -c "{{kafka_install_dir}}/bin/kafka-list-topic.sh --zookeeper {{kafka_zookeepers|join(',')}}"
+  register: kafka_topics
+
+- name: Register topics
+  command: sh -c "{{kafka_install_dir}}/bin/kafka-create-topic.sh --zookeeper {{kafka_zookeepers|join(',')}} --topic {{item}}"
+  with_items: "{{kafka_create_topics}}"
+  when: kafka_topics.stdout == 'no topics exist!'

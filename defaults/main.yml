@@ -1,0 +1,12 @@
+---
+kafka_apache_base: http://apache.komsys.org/kafka
+kafka_version: 0.8.0
+kafka_base: kafka_2.8.0-{{kafka_version}}
+kafka_install_dir: /opt/kafka
+kafka_zookeepers:
+  - localhost
+kafka_port: 9092
+kafka_id: 0
+kafka_hostname: "{{ansible_hostname}}"
+kafka_create_topics: 
+  - test

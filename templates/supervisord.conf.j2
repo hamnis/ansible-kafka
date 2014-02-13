@@ -1,0 +1,14 @@
+[program:kafka]
+command={{kafka_install_dir}}/bin/kafka-server-start.sh {{kafka_install_dir}}/config/server.properties
+directory={{kafka_install_dir}}
+process_name=kafka
+autostart=true
+autorestart=true
+user=kafka
+startsecs=15
+startretries=9
+redirect_stderr=true
+
+stdout_logfile={{kafka_install_dir}}/logs/kafka.out
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=10
