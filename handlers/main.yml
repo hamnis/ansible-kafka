@@ -1,3 +1,4 @@
 ---
 - name: restart kafka
   supervisorctl: name=kafka state=restarted
+  sudo: yes

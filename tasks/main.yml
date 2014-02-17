@@ -17,40 +17,44 @@
 
 - name: Create logs folder
   file: path={{kafka_install_dir}}/logs state=directory
+  sudo: yes
   when: unpacked.changed
 
 - name: Fix install directory permissions
   file: path={{kafka_install_dir}} state=directory owner=kafka group=kafka recurse=yes
   sudo: yes
-  when: unpacked.changed
+
+- name: Fix install directory permissions
+  file: path={{kafka_install_dir}}/bin state=directory owner=kafka group=kafka recurse=yes mode=0755
+  sudo: yes
 
 - name: Set server.properties
   template: dest={{kafka_install_dir}}/config/server.properties src=server.properties.j2 owner=kafka group=kafka
+  sudo: yes
   register: server_props
 
 - name: Set log4j.properites
   template: dest={{kafka_install_dir}}/config/log4j.properties src=log4j.properties.j2 owner=kafka group=kafka
+  sudo: yes
   register: logging_props
 
 - name: Install supervisord config
   template: dest=/etc/supervisor/conf.d/kafka.conf src=supervisord.conf.j2 owner=root group=root mode=0644
+  sudo: yes
   notify: restart supervisor
-  when: unpacked.changed
 
 - name: Restarting kafka
   command: echo "restarting kafka"
   when: logging_props.changed or server_props.changed
-  notify: restart kafka
-
-- name: Start kafka
-  supervisorctl: name=kafka state=started
-  sudo: yes
+  notify: restart supervisor
 
 - name: List topics
   command: sh -c "{{kafka_install_dir}}/bin/kafka-list-topic.sh --zookeeper {{kafka_zookeepers|join(',')}}"
+  sudo_user: kafka
   register: kafka_topics
 
 - name: Register topics
   command: sh -c "{{kafka_install_dir}}/bin/kafka-create-topic.sh --zookeeper {{kafka_zookeepers|join(',')}} --topic {{item}}"
   with_items: "{{kafka_create_topics}}"
+  sudo_user: kafka
   when: kafka_topics.stdout == 'no topics exist!'
